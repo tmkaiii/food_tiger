@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+//import 'package:firebase_auth/firebase_auth.dart'
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../providers/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -16,6 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _phoneController = TextEditingController(); // Added phone controller
 
   DateTime? _selectedDate;
   bool _isPasswordVisible = false;
@@ -28,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _phoneController.dispose(); // Dispose phone controller
     super.dispose();
   }
 
@@ -38,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       initialDate: _selectedDate ?? DateTime(DateTime.now().year - 18, DateTime.now().month, DateTime.now().day),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      // 自定义主题
+      // Custom theme
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -67,17 +71,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       try {
-        // 模拟网络延迟
-        await Provider.of<AuthProvider>(context, listen: false).register(
+        // Register with Firebase
+        await Provider.of<UserAuthProvider>(context, listen: false).register(
           _nameController.text.trim(),
           _emailController.text.trim(),
           _passwordController.text,
+          _phoneController.text.trim(),
+          _selectedDate,
         );
-        await Future.delayed(const Duration(seconds: 1));
 
-        // 这里实现实际注册逻辑
-
-        // 显示成功消息
+        // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -87,19 +90,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           );
 
-          // 返回登录页
+          // Navigate back to login page
           Navigator.pop(context);
         }
       } catch (e) {
-        // 错误处理
+        // Error handling
         _showErrorSnackBar('Registration failed: ${e.toString()}');
       } finally {
-        // 如果组件仍然挂载，更新加载状态
+        // If component is still mounted, update loading state
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
         }
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Call Google sign-in from AuthProvider
+      await Provider.of<UserAuthProvider>(context, listen: false).signInWithGoogle();
+
+      // Navigate to home screen
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+    } catch (e) {
+      // Error handling
+      _showErrorSnackBar('Google sign-in failed: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -116,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 获取设备尺寸，用于响应式布局
+    // Get device size for responsive layout
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 600;
 
@@ -134,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 应用 Logo
+                    // App Logo
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -162,7 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 30),
 
-                    // 标题
+                    // Title
                     const Text(
                       'Sign Up',
                       style: TextStyle(
@@ -172,7 +200,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 名字字段
+                    // Name field
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
@@ -191,7 +219,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 出生日期字段
+                    // Phone number field (added)
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: 'Enter your phone number',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.phone),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Birth date field
                     GestureDetector(
                       onTap: () => _selectDate(context),
                       child: AbsorbPointer(
@@ -218,7 +266,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 电子邮件字段
+                    // Email field
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
@@ -241,7 +289,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 密码字段
+                    // Password field
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(
@@ -276,7 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 确认密码字段
+                    // Confirm Password
                     TextFormField(
                       controller: _confirmPasswordController,
                       decoration: InputDecoration(
@@ -312,7 +360,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 30),
 
-                    // 注册按钮
+                    // Register button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
@@ -335,7 +383,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 已有账号链接
+                    // Google Sign-In button (added)
+                    // OutlinedButton.icon(
+                    //   onPressed: _isLoading ? null : _signInWithGoogle,
+                    //   icon: Image.asset(
+                    //     'assets/images/google_logo.png',
+                    //     height: 24,
+                    //   ),
+                    //   label: const Text('Sign up with Google'),
+                    //   style: OutlinedButton.styleFrom(
+                    //     padding: const EdgeInsets.symmetric(vertical: 12),
+                    //   ),
+                    // ),
+                    const SizedBox(height: 16),
+
+                    // Already have an account link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -349,7 +411,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
 
-                    // 条款和条件
+                    // Terms and conditions
                     const SizedBox(height: 10),
                     Text(
                       'By signing up, you agree to our Terms of Service and Privacy Policy',

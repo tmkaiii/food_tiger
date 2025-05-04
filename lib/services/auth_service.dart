@@ -1,68 +1,182 @@
+// services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // 获取当前用户
-  User? get currentUser => _auth.currentUser;
-
-  // 监听认证状态变化
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // 邮箱密码注册
-  Future<UserCredential> registerWithEmailAndPassword(String email, String password) async {
+  // Email/Password Registration
+  Future<UserModel?> registerWithEmailPassword(
+      String email, String password, String name, String phone) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      // Create user in Firebase Auth
+      UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-    } catch (e) {
-      rethrow;
-    }
-  }
 
-  // 邮箱密码登录
-  Future<UserCredential> signInWithEmailAndPassword(String email, String password) async {
-    try {
-      return await _auth.signInWithEmailAndPassword(
+      // Save additional user data to Firestore
+      await _saveUserData(
+        result.user!.uid,
+        name,
+        email,
+        phone,
+      );
+
+      return UserModel(
+        id: result.user!.uid,
+        name: name,
         email: email,
-        password: password,
+        phone: phone,
+        roles: ['buyer'],
       );
     } catch (e) {
-      rethrow;
+      print('Error during registration: $e');
+      return null;
     }
   }
 
-  // Google 登录
-  Future<UserCredential> signInWithGoogle() async {
+  // Google Sign In
+  Future<UserModel?> signInWithGoogle() async {
     try {
+      // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      if (googleUser == null) throw Exception('Google sign in aborted');
+      if (googleUser == null) {
+        return null; // User canceled the sign-in flow
+      }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
 
+      // Create a new credential
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      return await _auth.signInWithCredential(credential);
+      // Once signed in, return the UserCredential
+      UserCredential result = await _auth.signInWithCredential(credential);
+
+      // Check if user exists in Firestore
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(result.user!.uid)
+          .get();
+
+      // If new user, save data to Firestore
+      if (!userDoc.exists) {
+        String name = result.user!.displayName ?? '';
+        String email = result.user!.email ?? '';
+        String phone = result.user!.phoneNumber ?? '';
+
+        await _saveUserData(
+          result.user!.uid,
+          name,
+          email,
+          phone,
+        );
+
+        return UserModel(
+          id: result.user!.uid,
+          name: name,
+          email: email,
+          phone: phone,
+          roles: ['buyer'],
+        );
+      } else {
+        // Return existing user data
+        return UserModel.fromJson({
+          'id': result.user!.uid,
+          ...userDoc.data() as Map<String, dynamic>,
+        });
+      }
     } catch (e) {
-      rethrow;
+      print('Error during Google sign in: $e');
+      return null;
     }
   }
 
-  // 登出
-  Future<void> signOut() async {
-    await _googleSignIn.signOut(); // 如果使用了 Google 登录
-    await _auth.signOut();
+  // Save user data to Firestore
+  Future<void> _saveUserData(
+      String userId, String name, String email, String phone) async {
+    await _firestore.collection('users').doc(userId).set({
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'roles': ['buyer'],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  // 重置密码
-  Future<void> resetPassword(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+  // Forgot Password
+  Future<bool> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      return true;
+    } catch (e) {
+      print('Error sending password reset email: $e');
+      return false;
+    }
+  }
+
+  // Get current user
+  Future<UserModel?> getCurrentUser() async {
+    User? user = _auth.currentUser;
+
+    if (user != null) {
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        return UserModel.fromJson({
+          'id': user.uid,
+          ...userDoc.data() as Map<String, dynamic>,
+        });
+      }
+    }
+
+    return null;
+  }
+
+  // services/auth_service.dart (add this method)
+  Future<UserModel?> signInWithEmailPassword(String email, String password) async {
+    try {
+      // Sign in with Firebase Auth
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Get user data from Firestore
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(result.user!.uid)
+          .get();
+
+      if (userDoc.exists) {
+        return UserModel.fromJson({
+          'id': result.user!.uid,
+          ...userDoc.data() as Map<String, dynamic>,
+        });
+      }
+      return null;
+    } catch (e) {
+      print('Error signing in: $e');
+      return null;
+    }
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await _auth.signOut();
   }
 }

@@ -3,27 +3,27 @@
 
 import 'package:flutter/material.dart';
 
-class CategorySelector extends StatefulWidget {
-  const CategorySelector({Key? key}) : super(key: key);
+class CategorySelector extends StatelessWidget {
+  final String selectedCategory;
+  final Function(String) onCategorySelected;
 
-  @override
-  State<CategorySelector> createState() => _CategorySelectorState();
-}
-
-class _CategorySelectorState extends State<CategorySelector> {
-  String _selectedCategory = 'All';
-
-  final List<String> _categories = [
-    'All',
-    'Malaysian',
-    'Chinese',
-    'Indian',
-    'Fast Food',
-    'Desserts',
-  ];
+  const CategorySelector({
+    Key? key,
+    required this.selectedCategory,
+    required this.onCategorySelected,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final List<String> _categories = [
+      'All',
+      'Malaysian',
+      'Chinese',
+      'Indian',
+      'Fast Food',
+      'Desserts',
+    ];
+
     return SizedBox(
       height: 40,
       child: ListView.builder(
@@ -31,14 +31,12 @@ class _CategorySelectorState extends State<CategorySelector> {
         itemCount: _categories.length,
         itemBuilder: (context, index) {
           final category = _categories[index];
-          final isSelected = category == _selectedCategory;
+          final isSelected = category == selectedCategory;
 
           return GestureDetector(
             onTap: () {
-              setState(() {
-                _selectedCategory = category;
-              });
-              // 这里可以添加过滤餐厅的逻辑
+              // 调用外部传入的回调函数而不是内部 setState
+              onCategorySelected(category);
             },
             child: Container(
               margin: const EdgeInsets.only(right: 8),

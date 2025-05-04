@@ -1,6 +1,8 @@
 // screens/home_screen.dart
 import 'package:flutter/material.dart';
-import '../models/restaurant.dart';
+import 'package:provider/provider.dart';
+import '../models/restaurant_model.dart';
+import '../providers/restaurant_provider.dart';
 import '../widgets/carousel_section.dart';
 import '../widgets/category_selector.dart';
 import 'restaurant_list.dart';
@@ -15,31 +17,30 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
   int _currentIndex = 0;
-
   // 餐厅数据转换为对象模型
-  final List<Restaurant> _restaurants = [
-    Restaurant(
+  final List<RestaurantModel> _restaurants = [
+    RestaurantModel(
       id: '1',
       name: 'Malay Cookhouse',
       description: 'Malaysian traditional food',
       imageUrl: 'https://via.placeholder.com/150',
       categories: ['All', 'Malaysian'],
     ),
-    Restaurant(
+    RestaurantModel(
       id: '2',
       name: 'Pak Tam',
       description: 'Asam Pedas',
       imageUrl: 'https://via.placeholder.com/150',
       categories: ['All', 'Malaysian'],
     ),
-    Restaurant(
+    RestaurantModel(
       id: '3',
       name: 'Nasi Lemak Wanjo',
       description: 'You can find the most delicious Nasi Lemak here',
       imageUrl: 'https://via.placeholder.com/150',
       categories: ['All', 'Malaysian'],
     ),
-    Restaurant(
+    RestaurantModel(
       id: '4',
       name: 'Xin Eel Ma',
       description: 'You can find any local Chinese food here',
@@ -48,13 +49,14 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
-  List<Restaurant> _filteredRestaurants = [];
+  List<RestaurantModel> _filteredRestaurants = [];
   String _selectedCategory = 'All';
 
   @override
   void initState() {
     super.initState();
-    _filteredRestaurants = _restaurants;
+    // Loading Firestore data
+    Provider.of<RestaurantProvider>(context, listen: false).fetchRestaurants();
   }
 
   @override
@@ -63,38 +65,46 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // 搜索餐厅
+  // Search restaurants
   void _searchRestaurants(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filterRestaurantsByCategory(_selectedCategory);
-      } else {
-        _filteredRestaurants = _restaurants.where((restaurant) {
-          return restaurant.name.toLowerCase().contains(query.toLowerCase()) ||
-              restaurant.description.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-      }
-    });
+    final provider = Provider.of<RestaurantProvider>(context, listen: false);
+    final allRestaurants = provider.restaurants;
+
+    if (query.isEmpty) {
+      _filterRestaurantsByCategory(_selectedCategory, allRestaurants);
+    } else {
+      final filtered = allRestaurants.where((restaurant) {
+        return restaurant.name.toLowerCase().contains(query.toLowerCase()) ||
+            restaurant.description.toLowerCase().contains(query.toLowerCase());
+      }).toList();
+
+      provider.filteredRestaurants = filtered;
+    }
   }
 
-  // 按类别过滤餐厅
-  void _filterRestaurantsByCategory(String category) {
+  // Filter restaurants by category
+  void _filterRestaurantsByCategory(String category, [List<RestaurantModel>? restaurants]) {
+    final provider = Provider.of<RestaurantProvider>(context, listen: false);
+    final allRestaurants = restaurants ?? provider.restaurants;
     setState(() {
       _selectedCategory = category;
-      if (category == 'All') {
-        _filteredRestaurants = _restaurants;
-      } else {
-        _filteredRestaurants = _restaurants.where((restaurant) {
-          return restaurant.categories.contains(category);
-        }).toList();
-      }
     });
+
+    if (category == 'All') {
+      provider.filteredRestaurants = allRestaurants;
+    } else {
+      provider.filteredRestaurants = allRestaurants.where((restaurant) {
+        return restaurant.categories.contains(category);
+      }).toList();
+    }
   }
 
-  // 导航到餐厅详情页
-  void _navigateToRestaurantDetail(Restaurant restaurant) {
-    // 实现餐厅详情页导航
-    print('Navigate to restaurant detail: ${restaurant.name}');
+  // Navigate to restaurant detail
+  void _navigateToRestaurantDetail(RestaurantModel restaurant) {
+    Navigator.of(context).pushNamed(
+      '/restaurant-detail',
+      arguments: restaurant,
+    );
   }
 
   @override
@@ -106,53 +116,64 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             onPressed: () {
-              // 导航到购物车页面
+              Navigator.of(context).pushNamed('/cart');
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 轮播图部分
-          const CarouselSection(),
+      body: Consumer<RestaurantProvider>(
+        builder: (ctx, restaurantProvider, _) {
+          if (restaurantProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          // 搜索栏
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search restaurants',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+          return Column(
+            children: [
+              // Carousel section
+              const CarouselSection(),
+
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search restaurants',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                  onChanged: _searchRestaurants,
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
-              onChanged: _searchRestaurants,
-            ),
-          ),
 
-          // 类别选择器
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: CategorySelector(),
-          ),
+              // Category selector
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: CategorySelector(
+                  selectedCategory: _selectedCategory,
+                  onCategorySelected: _filterRestaurantsByCategory,
+                ),
+              ),
 
-          const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-          // 餐厅列表
-          Expanded(
-            child: RestaurantList(
-              restaurants: _filteredRestaurants,
-              onTap: _navigateToRestaurantDetail,
-              showViewAll: true,
-              onViewAllTap: () {
-                // 导航到所有餐厅页面
-              },
-            ),
-          ),
-        ],
+              // Restaurant list
+              Expanded(
+                child: RestaurantList(
+                  restaurants: restaurantProvider.filteredRestaurants,
+                  onTap: _navigateToRestaurantDetail,
+                  showViewAll: true,
+                  onViewAllTap: () {
+                    Navigator.of(context).pushNamed('/all-restaurants');
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -160,7 +181,17 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _currentIndex = index;
           });
-          // 根据导航栏选项执行相应操作
+          // Handle navigation based on index
+          switch (index) {
+            case 0: // Home
+              break;
+            case 1: // Orders
+              Navigator.of(context).pushNamed('/orders');
+              break;
+            case 2: // Profile
+              Navigator.of(context).pushNamed('/profile');
+              break;
+          }
         },
         items: const [
           BottomNavigationBarItem(

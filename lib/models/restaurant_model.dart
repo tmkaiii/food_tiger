@@ -1,5 +1,5 @@
-// models/restaurant.dart
-class Restaurant {
+// models/restaurant_model.dart
+class RestaurantModel {
   final String id;
   final String name;
   final String description;
@@ -9,7 +9,7 @@ class Restaurant {
   final int deliveryTimeMax;
   final List<String> categories;
 
-  Restaurant({
+  RestaurantModel({
     required this.id,
     required this.name,
     required this.description,
@@ -21,8 +21,8 @@ class Restaurant {
   });
 
   // 工厂构造函数，从JSON转换
-  factory Restaurant.fromJson(Map<String, dynamic> json) {
-    return Restaurant(
+  factory RestaurantModel.fromJson(Map<String, dynamic> json) {
+    return RestaurantModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',

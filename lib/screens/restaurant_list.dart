@@ -1,15 +1,13 @@
-// 优化餐厅列表
-// screens/home/restaurant_list.dart
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/restaurant.dart';
+import '../models/restaurant_model.dart';
 
 class RestaurantList extends StatelessWidget {
-  final List<Restaurant> restaurants;
-  final Function(Restaurant) onTap;
+  final List<RestaurantModel> restaurants;
+  final Function(RestaurantModel) onTap;
   final bool showViewAll;
   final VoidCallback? onViewAllTap;
+  final bool isLoading;
 
   const RestaurantList({
     Key? key,
@@ -17,10 +15,23 @@ class RestaurantList extends StatelessWidget {
     required this.onTap,
     this.showViewAll = false,
     this.onViewAllTap,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (restaurants.isEmpty) {
+      return const Center(
+        child: Text('No restaurants found'),
+      );
+    }
+
     return Column(
       children: [
         if (showViewAll)
@@ -57,7 +68,7 @@ class RestaurantList extends StatelessWidget {
     );
   }
 
-  Widget _buildRestaurantCard(BuildContext context, Restaurant restaurant) {
+  Widget _buildRestaurantCard(BuildContext context, RestaurantModel restaurant) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -71,7 +82,7 @@ class RestaurantList extends StatelessWidget {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              // 餐厅图片
+              // Restaurant image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Hero(
@@ -84,20 +95,18 @@ class RestaurantList extends StatelessWidget {
                     placeholder: (context, url) => Container(
                       color: Colors.grey[300],
                       child: const Center(
-                        child: Icon(Icons.restaurant, color: Colors.grey),
+                        child: CircularProgressIndicator(),
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
                       color: Colors.grey[300],
-                      child: const Center(
-                        child: Icon(Icons.error, color: Colors.red),
-                      ),
+                      child: const Icon(Icons.restaurant, color: Colors.grey),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
-              // 餐厅信息
+              // Restaurant info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

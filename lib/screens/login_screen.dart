@@ -4,6 +4,7 @@ import 'home_screen.dart';
 import 'register_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import 'forgot_password_screen.dart'; // Import the ForgotPasswordScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -27,41 +28,32 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    // 验证表单
+    // Validate form
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
       try {
-        // 模拟网络延迟
-        await Provider.of<AuthProvider>(context, listen: false).login(
+        // Perform login with Firebase through AuthProvider
+        await Provider.of<UserAuthProvider>(context, listen: false).login(
           _emailController.text.trim(),
           _passwordController.text,
         );
-        await Future.delayed(const Duration(seconds: 1));
 
-        // 在实际应用中，这里会是真正的登录逻辑
-        if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-
-          // 登录成功，导航到主页
-          if (mounted) {
-             Navigator.of(context).pushReplacement(
-               MaterialPageRoute(builder: (context) => const HomeScreen()),
-             );
-           }
-        } else {
-          // 登录失败
-          if(mounted){
-            _showErrorSnackBar('Invalid email or password');
-          }
-
+        // Login successful, navigate to home page
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
         }
       } catch (e) {
-        // 错误处理
-        _showErrorSnackBar('Login failed: ${e.toString()}');
+        // Error handling
+        if (mounted) {
+          _showErrorSnackBar('Login failed: ${e.toString()}');
+        }
       } finally {
-        // 如果组件仍然挂载，更新加载状态
+        // If component is still mounted, update loading state
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -70,13 +62,18 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-  // 添加 Google 登录方法
-  Future<void> _signInWithGoogle() async {
-    try {
-      await Provider.of<AuthProvider>(context, listen: false).signInWithGoogle();
 
-      // 登录成功，导航到主页
-      if (mounted) {
+  // Google sign-in method
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = await Provider.of<UserAuthProvider>(context, listen: false).signInWithGoogle();
+
+      if (user != null && mounted) {
+        // Login successful, navigate to home page
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
@@ -85,8 +82,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         _showErrorSnackBar('Google sign in failed: ${e.toString()}');
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -99,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 获取设备尺寸，用于响应式布局
+    // Get device size for responsive layout
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 600;
 
@@ -117,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 应用 Logo
+                    // App Logo
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -145,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // 标题
+                    // Title
                     const Text(
                       'Sign In',
                       style: TextStyle(
@@ -155,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 电子邮件字段
+                    // Email field
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
@@ -169,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        // 基本的电子邮件格式验证
+                        // Basic email format validation
                         if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                           return 'Please enter a valid email';
                         }
@@ -178,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 密码字段
+                    // Password field
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(
@@ -207,19 +211,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    // 忘记密码链接
+                    // Forgot password link
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {
-                          // 导航到忘记密码页面
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ForgotPasswordScreen(),
+                            ),
+                          );
                         },
                         child: const Text('Forgot Password?'),
                       ),
                     ),
                     const SizedBox(height: 24),
 
-                    // 登录按钮
+                    // Login button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
@@ -242,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 分隔线
+                    // Divider
                     Row(
                       children: [
                         Expanded(child: Divider(color: Colors.grey[400])),
@@ -258,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 社交登录按钮
+                    // Social login buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -272,14 +280,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: Icons.facebook,
                           color: Colors.blue,
                           onPressed: () {
-                            // Facebook 登录逻辑
+                            // Facebook login logic
                           },
                         ),
                       ],
                     ),
                     const SizedBox(height: 24),
 
-                    // 注册链接
+                    // Registration link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
