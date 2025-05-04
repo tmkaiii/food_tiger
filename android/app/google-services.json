@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "53231880631",
+    "project_id": "food-tiger-2",
+    "storage_bucket": "food-tiger-2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:53231880631:android:0083a2818397e37aa8c032",
+        "android_client_info": {
+          "package_name": "com.example.food_tiger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "53231880631-bi9bb98kaumpr4p72vnh0hmub7b171qq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZuSvcyJslwViKQ-3xw8IV9mRyYVNGtKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "53231880631-bi9bb98kaumpr4p72vnh0hmub7b171qq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "53231880631-hi0c7t73jgudvt6o051519dd91eeb49q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.foodTiger"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
