@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
-import '../../services/auth_service.dart';
+import '../../providers/auth_provider.dart'; // Fixed import path
 
 class UserProfileScreen extends StatefulWidget {
   @override
@@ -16,15 +16,29 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isEditing = false;
   bool _isLoading = false;
 
-  final AuthService _authService = AuthService();
-
   @override
   void initState() {
     super.initState();
+    // Load user data after build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserData();
+    });
+  }
 
+  void _loadUserData() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    _nameController = TextEditingController(text: userProvider.currentUser?.name);
-    _phoneController = TextEditingController(text: userProvider.currentUser?.phone);
+    final authProvider = Provider.of<UserAuthProvider>(context, listen: false);
+
+    // If UserProvider has no data but AuthProvider does, sync them
+    if (userProvider.currentUser == null && authProvider.currentUser != null) {
+      userProvider.setUser(authProvider.currentUser!);
+    }
+
+    // Initialize controllers with user data
+    setState(() {
+      _nameController = TextEditingController(text: userProvider.currentUser?.name ?? '');
+      _phoneController = TextEditingController(text: userProvider.currentUser?.phone ?? '');
+    });
   }
 
   @override
@@ -55,11 +69,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profile updated successfully')),
+        SnackBar(content: Text('Info Update Successfully!')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating profile: ${e.toString()}')),
+        SnackBar(content: Text('Error when updating info: ${e.toString()}')),
       );
     } finally {
       setState(() {
@@ -74,7 +88,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
 
     try {
-      await _authService.signOut();
+      // Use AuthProvider for consistency
+      await Provider.of<UserAuthProvider>(context, listen: false).signOut();
 
       // Clear user provider data
       Provider.of<UserProvider>(context, listen: false).clearUser();
@@ -83,7 +98,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out: ${e.toString()}')),
+        SnackBar(content: Text('Error when logging out: ${e.toString()}')),
       );
     } finally {
       setState(() {
@@ -119,7 +134,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           Navigator.of(context).pushNamed('/become-seller');
         },
         icon: Icon(Icons.store),
-        label: Text('Become a Seller'),
+        label: Text('Become Seller'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).primaryColor,
         ),
@@ -129,10 +144,50 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+
+    // display isLoading
+    if (userProvider.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text('My Profile')),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // display error when not data
+    if (userProvider.currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text('My Profile')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Profile data cannot be loaded'),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  // Refresh to load profile data
+                  final authProvider = Provider.of<UserAuthProvider>(context, listen: false);
+                  authProvider.checkCurrentUser().then((user) {
+                    if (user != null) {
+                      Provider.of<UserProvider>(context, listen: false).setUser(user);
+                    }
+                  });
+                },
+                child: Text('Refresh'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Display normal profile data
     return Scaffold(
       appBar: AppBar(
         title: Text('My Profile'),
         actions: [
+          // Edit button
           if (!_isEditing)
             IconButton(
               icon: Icon(Icons.edit),
@@ -144,141 +199,134 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
         ],
       ),
-      body: Consumer<UserProvider>(
-        builder: (ctx, userProvider, _) {
-          if (userProvider.currentUser == null) {
-            return Center(child: Text('No user data found'));
-          }
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // userProfile
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                child: Icon(Icons.person, size: 50, color: Theme.of(context).primaryColor),
+              ),
+              SizedBox(height: 20),
 
-          return _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Profile image
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-                SizedBox(height: 16),
-
-                // Email (non-editable)
-                Card(
-                  child: ListTile(
-                    leading: Icon(Icons.email),
-                    title: Text('Email'),
-                    subtitle: Text(userProvider.currentUser!.email),
-                  ),
-                ),
-
-                // Form with editable fields
-                Form(
-                  key: _formKey,
+              // Profile Card
+              Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
                   child: Column(
                     children: [
                       // Name
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: _isEditing
-                              ? TextFormField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              labelText: 'Name',
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your name';
-                              }
-                              return null;
-                            },
-                          )
-                              : ListTile(
-                            leading: Icon(Icons.person),
-                            title: Text('Name'),
-                            subtitle: Text(userProvider.currentUser!.name),
-                          ),
+                      _isEditing
+                          ? TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Name',
+                          prefixIcon: Icon(Icons.person),
                         ),
-                      ),
-
-                      // Phone
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: _isEditing
-                              ? TextFormField(
-                            controller: _phoneController,
-                            decoration: InputDecoration(
-                              labelText: 'Phone',
-                              prefixIcon: Icon(Icons.phone),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your phone number';
-                              }
-                              return null;
-                            },
-                          )
-                              : ListTile(
-                            leading: Icon(Icons.phone),
-                            title: Text('Phone'),
-                            subtitle: Text(userProvider.currentUser!.phone),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 16),
-
-                // Update profile button (only when editing)
-                if (_isEditing)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _isEditing = false;
-                            // Reset controllers to original values
-                            _nameController.text = userProvider.currentUser!.name;
-                            _phoneController.text = userProvider.currentUser!.phone;
-                          });
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your name';
+                          }
+                          return null;
                         },
-                        child: Text('Cancel'),
+                      )
+                          : ListTile(
+                        leading: Icon(Icons.person),
+                        title: Text('Name'),
+                        subtitle: Text(userProvider.currentUser!.name),
                       ),
-                      ElevatedButton(
-                        onPressed: _updateProfile,
-                        child: Text('Save Changes'),
+
+                      Divider(),
+
+                      // Email(display only not edit)
+                      ListTile(
+                        leading: Icon(Icons.email),
+                        title: Text('Email'),
+                        subtitle: Text(userProvider.currentUser!.email),
+                      ),
+
+                      Divider(),
+
+                      // Phone Number
+                      _isEditing
+                          ? TextFormField(
+                        controller: _phoneController,
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          prefixIcon: Icon(Icons.phone),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your phone number';
+                          }
+                          return null;
+                        },
+                      )
+                          : ListTile(
+                        leading: Icon(Icons.phone),
+                        title: Text('Phone Number'),
+                        subtitle: Text(userProvider.currentUser!.phone),
                       ),
                     ],
                   ),
-
-                SizedBox(height: 24),
-
-                // Become Seller / Toggle Mode button
-                _buildBecomeSellerButton(),
-
-                SizedBox(height: 16),
-
-                // Sign out button
-                OutlinedButton.icon(
-                  onPressed: _signOut,
-                  icon: Icon(Icons.exit_to_app),
-                  label: Text('Sign Out'),
                 ),
-              ],
-            ),
-          );
-        },
+              ),
+              SizedBox(height: 20),
+
+              // save after edit button and cancel edit button
+              if (_isEditing)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _isEditing = false;
+                          // Reset to original value
+                          _nameController.text = userProvider.currentUser!.name;
+                          _phoneController.text = userProvider.currentUser!.phone;
+                        });
+                      },
+                      child: Text('Cancel'),
+                    ),
+                    SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: _updateProfile,
+                      child: _isLoading
+                          ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : Text('Save'),
+                    ),
+                  ],
+                ),
+
+              SizedBox(height: 20),
+
+              // Seller function
+              _buildBecomeSellerButton(),
+
+              SizedBox(height: 20),
+
+              // Logout button
+              OutlinedButton.icon(
+                onPressed: _signOut,
+                icon: Icon(Icons.logout),
+                label: Text('Logout'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

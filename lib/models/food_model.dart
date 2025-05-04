@@ -23,7 +23,7 @@ class FoodModel {
     this.categories = const [],
     this.isAvailable = true,
     this.rating = 0,
-    this.ratingCount = 0,
+    this.ratingCount = 0, required String category,
   });
 
   // Factory constructor to create a FoodModel from a Firestore document
@@ -38,9 +38,10 @@ class FoodModel {
       categories: List<String>.from(json['categories'] ?? []),
       isAvailable: json['isAvailable'] ?? true,
       rating: (json['rating'] ?? 0).toDouble(),
-      ratingCount: json['ratingCount'] ?? 0,
+      ratingCount: json['ratingCount'] ?? 0, category: '',
     );
   }
+
 
   // Convert the FoodModel instance to a JSON map for Firestore
   Map<String, dynamic> toJson() {
@@ -80,7 +81,7 @@ class FoodModel {
       categories: categories ?? this.categories,
       isAvailable: isAvailable ?? this.isAvailable,
       rating: rating ?? this.rating,
-      ratingCount: ratingCount ?? this.ratingCount,
+      ratingCount: ratingCount ?? this.ratingCount, category: '',
     );
   }
 }

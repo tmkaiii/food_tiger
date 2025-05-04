@@ -20,7 +20,7 @@ class SellerDashboard extends StatelessWidget {
           OrdersManagementCard(),
 
           // Food management card
-          //FoodManagementCard(),
+          FoodManagementCard(),
         ],
       ),
     );
@@ -171,52 +171,52 @@ class OrdersManagementCard extends StatelessWidget {
   }
 }
 
-// class FoodManagementCard extends StatelessWidget {
-//   @override
-//   Widget build(BuildContext context) {
-//     return Card(
-//       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-//       child: InkWell(
-//         onTap: () {
-//           // You'll need to select a restaurant first
-//           // or navigate to a restaurant selection screen
-//           Navigator.of(context).push(
-//             MaterialPageRoute(
-//               builder: (ctx) => SelectRestaurantForFoodManagement(),
-//             ),
-//           );
-//         },
-//         child: Padding(
-//           padding: const EdgeInsets.all(16),
-//           child: Row(
-//             children: [
-//               Icon(
-//                 Icons.fastfood,
-//                 size: 40,
-//                 color: Theme.of(context).primaryColor,
-//               ),
-//               const SizedBox(width: 16),
-//               Expanded(
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Text(
-//                       'Manage Food Items',
-//                       style: Theme.of(context).textTheme.titleMedium,
-//                     ),
-//                     const SizedBox(height: 4),
-//                     Text(
-//                       'Add, edit or remove food items',
-//                       style: Theme.of(context).textTheme.bodyMedium,
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               Icon(Icons.arrow_forward_ios),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
+class FoodManagementCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: InkWell(
+        // onTap: () {
+        //   // You'll need to select a restaurant first
+        //   // or navigate to a restaurant selection screen
+        //   Navigator.of(context).push(
+        //     MaterialPageRoute(
+        //       builder: (ctx) => SelectRestaurantForFoodManagement(),
+        //     ),
+        //   );
+        // },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                Icons.fastfood,
+                size: 40,
+                color: Theme.of(context).primaryColor,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Manage Food Items',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Add, edit or remove food items',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
